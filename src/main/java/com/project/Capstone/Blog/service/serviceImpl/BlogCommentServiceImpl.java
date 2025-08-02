@@ -10,12 +10,14 @@ import com.project.Capstone.blog.service.BlogCommentService;
 import com.project.Capstone.model.User;
 import com.project.Capstone.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class BlogCommentServiceImpl implements BlogCommentService {
@@ -27,10 +29,19 @@ public class BlogCommentServiceImpl implements BlogCommentService {
 
     @Override
     public BlogCommentResponse create(Long userId, BlogCommentRequest request) {
+        log.info("Creating comment on postId: {} by userId: {}", request.getPostId(), userId);
+
         Post post = postRepository.findById(request.getPostId())
-                .orElseThrow(() -> new RuntimeException("Post not found"));
+                .orElseThrow(() -> {
+                    log.error("Post not found with id: {}", request.getPostId());
+                    return new RuntimeException("Post not found");
+                });
+
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> {
+                    log.error("User not found with id: {}", userId);
+                    return new RuntimeException("User not found");
+                });
 
         BlogComment comment = BlogComment.builder()
                 .content(request.getContent())
@@ -39,6 +50,7 @@ public class BlogCommentServiceImpl implements BlogCommentService {
                 .build();
 
         BlogComment saved = commentRepository.save(comment);
+        log.info("Comment saved successfully with id: {}", saved.getId());
 
         BlogCommentResponse response = mapper.map(saved, BlogCommentResponse.class);
         response.setAuthor(user.getFullName());
@@ -47,12 +59,17 @@ public class BlogCommentServiceImpl implements BlogCommentService {
 
     @Override
     public List<BlogCommentResponse> getCommentsByPost(Long postId) {
-        return commentRepository.findByPostId(postId).stream()
+        log.info("Fetching comments for postId: {}", postId);
+
+        List<BlogCommentResponse> comments = commentRepository.findByPostId(postId).stream()
                 .map(comment -> {
                     BlogCommentResponse res = mapper.map(comment, BlogCommentResponse.class);
                     res.setAuthor(comment.getUser().getFullName());
                     return res;
                 })
                 .collect(Collectors.toList());
+
+        log.info("Total comments fetched for postId {}: {}", postId, comments.size());
+        return comments;
     }
 }
