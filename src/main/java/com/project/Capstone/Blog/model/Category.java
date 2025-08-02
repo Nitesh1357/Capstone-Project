@@ -1,18 +1,18 @@
-package com.project.Capstone.blog.model;
+// package com.project.Capstone.blog.model;
 
-import jakarta.persistence.*;
-import lombok.*;
+// import jakarta.persistence.*;
+// import lombok.*;
 
-@Entity
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-public class Category {
+// @Entity
+// @Data
+// @NoArgsConstructor
+// @AllArgsConstructor
+// @Builder
+// public class Category {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+//     @Id
+//     @GeneratedValue(strategy = GenerationType.IDENTITY)
+//     private Long id;
 
-    private String name;
-}
+//     private String name;
+// }
