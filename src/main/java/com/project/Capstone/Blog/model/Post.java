@@ -1,8 +1,7 @@
 package com.project.Capstone.blog.model;
 
-import com.project.Capstone.model.User;
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.*; 
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -33,12 +32,14 @@ public class Post {
     private LocalDateTime updatedAt;
 
     @ManyToOne
-    @JoinColumn(name = "author_id")
-    private User author;
+    @JoinColumn(name = "blog_user")
+    private BlogUser author;
 
-    @ManyToOne
-    @JoinColumn(name = "category_id")
-    private Category category;
+//    blog_category
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "blog_category")
+    private BlogCategory category;
 
     @ManyToMany
     @JoinTable(
