@@ -1,89 +1,121 @@
 package com.project.Capstone.blog.service.serviceImpl;
 
-import com.project.Capstone.blog.dto.request.CreatePostRequest;
-import com.project.Capstone.blog.dto.response.PostResponse;
-import com.project.Capstone.blog.model.*;
-import com.project.Capstone.blog.repository.*;
+import com.project.Capstone.blog.dto.request.PostRequestDto;
+import com.project.Capstone.blog.dto.response.PostResponseDto;
+import com.project.Capstone.blog.mapper.PostMapper;
+import com.project.Capstone.blog.model.BlogUser;
+import com.project.Capstone.blog.model.BlogCategory;
+import com.project.Capstone.blog.model.Post;
+import com.project.Capstone.blog.model.Tag;
+import com.project.Capstone.blog.repository.BlogUserRepository;
+import com.project.Capstone.blog.repository.BlogCategoryRepository;
+import com.project.Capstone.blog.repository.PostRepository;
+import com.project.Capstone.blog.repository.TagRepository;
 import com.project.Capstone.blog.service.PostService;
-import com.project.Capstone.model.User;
-import com.project.Capstone.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.modelmapper.ModelMapper;
-import org.springframework.data.domain.*;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PostServiceImpl implements PostService {
 
     private final PostRepository postRepository;
-    private final UserRepository userRepository;
-    private final CategoryRepository categoryRepository;
+    private final BlogUserRepository blogUserRepository;
+    private final BlogCategoryRepository categoryRepository;
     private final TagRepository tagRepository;
-    private final ModelMapper modelMapper;
+    private final JavaMailSender mailSender;
 
     @Override
-    public PostResponse createPost(CreatePostRequest request) {
-        User author = userRepository.findById(request.getAuthorId())
-                .orElseThrow(() -> new RuntimeException("Author not found"));
+    public PostResponseDto createPost(PostRequestDto dto) {
+        BlogUser author = blogUserRepository.findById(dto.getAuthorId())
+                .orElseThrow(() -> new RuntimeException("Author not found with ID: " + dto.getAuthorId()));
 
-        Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new RuntimeException("Category not found"));
+        BlogCategory category = categoryRepository.findById(dto.getCategoryId())
+                .orElseThrow(() -> new RuntimeException("Category not found with ID: " + dto.getCategoryId()));
 
-        List<Tag> tags = tagRepository.findAllById(request.getTagIds());
+        List<Tag> tags = tagRepository.findAllById(dto.getTagIds());
 
         Post post = Post.builder()
-                .title(request.getTitle())
-                .content(request.getContent())
+                .title(dto.getTitle())
+                .content(dto.getContent())
                 .author(author)
                 .category(category)
                 .tags(tags)
                 .build();
 
-        Post savedPost = postRepository.save(post);
+        Post saved = postRepository.save(post);
 
-        return mapToResponse(savedPost);
+        log.info(" Post '{}' created by {}", saved.getTitle(), author.getName());
+        sendEmail(author.getEmail(), saved.getTitle());
+
+        return PostMapper.toDto(saved);
     }
 
     @Override
-    public List<PostResponse> getAllPosts() {
-        return postRepository.findAll().stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+    public List<PostResponseDto> getAllPosts() {
+        List<Post> posts = postRepository.findAll();
+        log.info("Fetched all posts: {}", posts.size());
+        return posts.stream().map(PostMapper::toDto).toList();
     }
 
     @Override
-    public PostResponse getPostById(Long id) {
+    public PostResponseDto getPostById(Long id) {
         Post post = postRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Post not found"));
-        return mapToResponse(post);
+                .orElseThrow(() -> new RuntimeException("Post not found with ID: " + id));
+        log.info("Post fetched with ID {}", id);
+        return PostMapper.toDto(post);
+    }
+
+    @Override
+    public PostResponseDto updatePost(Long id, PostRequestDto dto) {
+        Post post = postRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Post not found with ID: " + id));
+
+        post.setTitle(dto.getTitle());
+        post.setContent(dto.getContent());
+
+        if (!post.getAuthor().getId().equals(dto.getAuthorId())) {
+            BlogUser newAuthor = blogUserRepository.findById(dto.getAuthorId())
+                    .orElseThrow(() -> new RuntimeException("Author not found with ID: " + dto.getAuthorId()));
+            post.setAuthor(newAuthor);
+        }
+
+        BlogCategory category = categoryRepository.findById(dto.getCategoryId())
+                .orElseThrow(() -> new RuntimeException("Category not found with ID: " + dto.getCategoryId()));
+        post.setCategory(category);
+
+        List<Tag> tags = tagRepository.findAllById(dto.getTagIds());
+        post.setTags(tags);
+
+        Post updated = postRepository.save(post);
+        log.info(" Post with ID {} updated", id);
+        return PostMapper.toDto(updated);
     }
 
     @Override
     public void deletePost(Long id) {
-        postRepository.deleteById(id);
+        Post post = postRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Post not found with ID: " + id));
+        postRepository.delete(post);
+        log.warn(" Post with ID {} deleted", id);
     }
 
-    @Override
-    public Page<PostResponse> getAllPosts(int page, int size, String sortBy, String direction) {
-        Sort sort = direction.equalsIgnoreCase("desc") ?
-                Sort.by(sortBy).descending() :
-                Sort.by(sortBy).ascending();
-
-        Pageable pageable = PageRequest.of(page, size, sort);
-        Page<Post> posts = postRepository.findAll(pageable);
-
-        return posts.map(this::mapToResponse);
-    }
-
-    private PostResponse mapToResponse(Post post) {
-        PostResponse response = modelMapper.map(post, PostResponse.class);
-        response.setAuthorName(post.getAuthor().getFullName());
-        response.setCategoryName(post.getCategory().getName());
-        response.setTagNames(post.getTags().stream().map(Tag::getName).collect(Collectors.toList()));
-        return response;
+    private void sendEmail(String to, String title) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(to);
+            message.setSubject("New Blog Post Published");
+            message.setText("Your blog post titled '" + title + "' has been successfully created.");
+            mailSender.send(message);
+            log.info("Email sent to {}", to);
+        } catch (Exception e) {
+            log.error(" Failed to send email to {}: {}", to, e.getMessage());
+        }
     }
 }
