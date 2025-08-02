@@ -1,0 +1,9 @@
+package com.project.Capstone.blog.dto.request;
+
+import lombok.Data;
+
+@Data
+public class BlogCommentRequest {
+    private Long postId;
+    private String content;
+}
