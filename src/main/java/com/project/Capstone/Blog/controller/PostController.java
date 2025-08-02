@@ -1,54 +1,53 @@
 package com.project.Capstone.blog.controller;
 
-import com.project.Capstone.blog.dto.request.CreatePostRequest;
-import com.project.Capstone.blog.dto.response.PostResponse;
+import com.project.Capstone.blog.dto.request.PostRequestDto;
+import com.project.Capstone.blog.dto.response.PostResponseDto;
 import com.project.Capstone.blog.service.PostService;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/blog/posts")
+@RequestMapping("/api/posts")
 @RequiredArgsConstructor
-@SecurityRequirement(name = "bearerAuth")
+@Slf4j
+@Tag(name = "Post", description = "CRUD operations for blog posts")
 public class PostController {
 
     private final PostService postService;
 
     @PostMapping
-    public ResponseEntity<PostResponse> createPost(@RequestBody CreatePostRequest request) {
-        return ResponseEntity.ok(postService.createPost(request));
+    public ResponseEntity<PostResponseDto> createPost(@RequestBody PostRequestDto dto) {
+        log.info("Creating new post");
+        return ResponseEntity.ok(postService.createPost(dto));
     }
 
-    // ✅ Non-paginated list
     @GetMapping
-    public ResponseEntity<List<PostResponse>> getAllPosts() {
+    public ResponseEntity<List<PostResponseDto>> getAllPosts() {
+        log.info("Fetching all posts");
         return ResponseEntity.ok(postService.getAllPosts());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<PostResponse> getPost(@PathVariable Long id) {
+    public ResponseEntity<PostResponseDto> getPostById(@PathVariable Long id) {
+        log.info(" Fetching post with ID {}", id);
         return ResponseEntity.ok(postService.getPostById(id));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<PostResponseDto> updatePost(@PathVariable Long id, @RequestBody PostRequestDto dto) {
+        log.info(" Updating post with ID {}", id);
+        return ResponseEntity.ok(postService.updatePost(id, dto));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletePost(@PathVariable Long id) {
+        log.info("Deleting post with ID {}", id);
         postService.deletePost(id);
         return ResponseEntity.noContent().build();
-    }
-
-    // ✅ Paginated list now has its own endpoint
-    @GetMapping("/paginated")
-    public ResponseEntity<Page<PostResponse>> getAllPostsPaginated(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "desc") String direction
-    ) {
-        return ResponseEntity.ok(postService.getAllPosts(page, size, sortBy, direction));
     }
 }
