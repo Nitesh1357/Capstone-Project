@@ -1,7 +1,7 @@
 package com.project.Capstone.repository;
 
-
-import ch.qos.logback.core.subst.Token;
+import com.project.Capstone.model.Token;
+//import ch.qos.logback.core.subst.Token;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import javax.swing.text.html.Option;
