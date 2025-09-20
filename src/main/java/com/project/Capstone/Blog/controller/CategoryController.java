@@ -1,4 +1,4 @@
-spackage com.project.Capstone.blog.controller;
+package com.project.Capstone.blog.controller;
 
 import com.project.Capstone.blog.dto.request.CategoryRequest;
 import com.project.Capstone.blog.dto.response.CategoryResponse;
